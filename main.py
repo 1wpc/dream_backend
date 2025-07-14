@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 
 from database import engine, Base
-from routers import user, points, generation, chat
+from routers import user, points, generation, chat, payment
 from config import settings
 
 # 数据库初始化
@@ -56,6 +56,8 @@ app.include_router(points.router, prefix="/api/v1")
 app.include_router(generation.router, prefix="/api/v1")
 # 包含聊天路由
 app.include_router(chat.router, prefix="/api/v1")
+# 包含支付路由
+app.include_router(payment.router, prefix="/api/v1")
 
 # 根路径
 @app.get("/")
@@ -92,4 +94,4 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
         log_level="info"
-    ) 
+    )

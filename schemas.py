@@ -138,4 +138,43 @@ class ImageGenerationResponse(BaseModel):
     image_url: str
     points_spent: Decimal
     points_remaining: Decimal
-    message: str 
+    message: str
+
+# 支付相关Schema
+class PaymentRequest(BaseModel):
+    """支付请求"""
+    subject: str  # 商品标题
+    body: str  # 商品描述
+    total_amount: Decimal  # 支付金额
+    out_trade_no: Optional[str] = None  # 商户订单号，如果不提供会自动生成
+    
+    @field_validator('total_amount')
+    @classmethod
+    def validate_amount(cls, v):
+        if v <= 0:
+            raise ValueError('支付金额必须大于0')
+        return v
+    
+    @field_validator('subject')
+    @classmethod
+    def validate_subject(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('商品标题不能为空')
+        return v.strip()
+
+class PaymentResponse(BaseModel):
+    """支付响应"""
+    order_string: str  # 支付宝订单字符串
+    out_trade_no: str  # 商户订单号
+    total_amount: Decimal  # 支付金额
+    subject: str  # 商品标题
+    message: str  # 响应消息
+
+class PaymentNotification(BaseModel):
+    """支付宝异步通知"""
+    out_trade_no: str  # 商户订单号
+    trade_no: str  # 支付宝交易号
+    trade_status: str  # 交易状态
+    total_amount: Decimal  # 交易金额
+    buyer_id: str  # 买家支付宝用户号
+    seller_id: str  # 卖家支付宝用户号

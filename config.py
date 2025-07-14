@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str = "your_deepseek_api_key_here"
     DEEPSEEK_CHAT_COST: int = 1 # 每次聊天的积分消耗
     
+    # 支付宝配置
+    ALIPAY_APP_ID: str = "your_alipay_app_id_here"
+    ALIPAY_APP_PRIVATE_KEY: str = "your_alipay_app_private_key_here"
+    ALIPAY_PUBLIC_KEY: str = "your_alipay_public_key_here"
+    ALIPAY_SELLER_ID: str = "your_alipay_seller_id_here"
+    ALIPAY_NOTIFY_URL: str = "https://your-domain.com/api/v1/payment/notify"  # 异步通知地址
+    
     @property
     def DATABASE_URL(self) -> str:
         return f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}"
@@ -38,4 +45,4 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
 
-settings = Settings() 
+settings = Settings()
