@@ -10,6 +10,9 @@
 - 🛡️ 密码加密存储
 - 📊 用户状态管理（激活/禁用）
 - 🔒 权限管理（普通用户/超级用户）
+- 💰 积分系统（余额查询、积分变动、交易记录）
+- 🎁 积分奖励（注册奖励、登录奖励）
+- 🔄 积分转移（用户间转移积分）
 - 📚 完整的API文档
 
 ## 技术栈
@@ -112,6 +115,9 @@ python test_api.py
 - 获取用户信息
 - 更新用户信息
 - 获取用户列表
+- 获取积分余额
+- 获取积分交易记录
+- 领取登录奖励
 
 ## API文档
 
@@ -175,6 +181,63 @@ GET /api/v1/users/
 Authorization: Bearer <access_token>
 ```
 
+### 获取积分余额
+
+```bash
+GET /api/v1/points/balance
+Authorization: Bearer <access_token>
+```
+
+### 获取积分交易记录
+
+```bash
+GET /api/v1/points/transactions?page=1&page_size=20
+Authorization: Bearer <access_token>
+```
+
+### 领取登录奖励
+
+```bash
+POST /api/v1/points/login-bonus
+Authorization: Bearer <access_token>
+```
+
+### 转移积分
+
+```bash
+POST /api/v1/points/transfer
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "to_user_id": 2,
+  "amount": 50.00,
+  "description": "转移积分"
+}
+```
+
+### 管理员添加积分
+
+```bash
+POST /api/v1/points/add
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "target_user_id": 2,
+  "amount": 100.00,
+  "transaction_type": "admin_adjust",
+  "description": "管理员调整积分"
+}
+```
+
+### 图片生成服务
+
+- `POST /api/v1/generate/image` - 消耗积分生成一张图片
+
+### 文档
+- `GET /docs` - API文档（Swagger UI）
+
 ## 数据库表结构
 
 ### users 表
@@ -190,8 +253,35 @@ Authorization: Bearer <access_token>
 | avatar | TEXT | 头像URL |
 | is_active | BOOLEAN | 是否激活 |
 | is_superuser | BOOLEAN | 是否为超级用户 |
+| points_balance | DECIMAL(10,2) | 积分余额 |
+| total_points_earned | DECIMAL(10,2) | 累计获得积分 |
+| total_points_spent | DECIMAL(10,2) | 累计消费积分 |
 | created_at | DATETIME | 创建时间 |
 | updated_at | DATETIME | 更新时间 |
+
+### point_transactions 表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT | 主键，自增 |
+| user_id | INT | 用户ID，外键 |
+| transaction_type | ENUM | 交易类型 |
+| amount | DECIMAL(10,2) | 积分数量（正数为增加，负数为减少） |
+| balance_before | DECIMAL(10,2) | 交易前余额 |
+| balance_after | DECIMAL(10,2) | 交易后余额 |
+| description | VARCHAR(255) | 交易描述 |
+| reference_id | VARCHAR(100) | 关联ID |
+| created_at | DATETIME | 创建时间 |
+
+#### 积分交易类型
+- `register` - 注册奖励
+- `login` - 登录奖励
+- `task` - 任务奖励
+- `purchase` - 购买消费
+- `refund` - 退款返还
+- `admin_adjust` - 管理员调整
+- `gift` - 赠送/转移
+- `activity` - 活动奖励
 
 ## 项目结构
 
@@ -210,7 +300,8 @@ dream_backend/
 ├── README.md           # 项目说明
 └── routers/            # 路由模块
     ├── __init__.py
-    └── user.py         # 用户路由
+    ├── user.py         # 用户路由
+    └── points.py       # 积分路由
 ```
 
 ## 开发说明

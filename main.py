@@ -5,20 +5,28 @@ from contextlib import asynccontextmanager
 import uvicorn
 
 from database import engine, Base
-from routers import user
+from routers import user, points, generation, chat
 from config import settings
 
 # 数据库初始化
 def create_tables():
     """创建数据库表"""
-    Base.metadata.create_all(bind=engine)
+    # Base.metadata.create_all会检查表是否存在，只创建不存在的表。
+    # 这在生产环境中是安全的，不会删除现有数据。
+    # 如需进行表结构变更，请使用Alembic等数据库迁移工具。
+    try:
+        print("🚀 正在检查并创建数据库表...")
+        Base.metadata.create_all(bind=engine)
+        print("✅ 数据库表检查和创建完成")
+    except Exception as e:
+        print(f"❌ 数据库表操作失败: {e}")
+        raise
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时创建数据库表
     create_tables()
-    print("数据库表创建成功")
     yield
     # 关闭时的清理操作
     print("应用关闭")
@@ -42,6 +50,12 @@ app.add_middleware(
 
 # 包含用户路由
 app.include_router(user.router, prefix="/api/v1")
+# 包含积分路由
+app.include_router(points.router, prefix="/api/v1")
+# 包含内容生成路由
+app.include_router(generation.router, prefix="/api/v1")
+# 包含聊天路由
+app.include_router(chat.router, prefix="/api/v1")
 
 # 根路径
 @app.get("/")

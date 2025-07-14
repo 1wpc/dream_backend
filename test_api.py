@@ -7,6 +7,7 @@ API测试脚本
 import requests
 import json
 from datetime import datetime
+from decimal import Decimal
 
 # API基础URL
 BASE_URL = "http://localhost:8000"
@@ -164,6 +165,134 @@ def test_get_users_list(token):
         print(f"❌ 获取用户列表请求失败: {e}")
         return None
 
+def test_get_points_balance(token):
+    """测试获取积分余额"""
+    print("\n🔍 测试获取积分余额...")
+    
+    try:
+        response = requests.get(
+            f"{API_URL}/points/balance",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        if response.status_code == 200:
+            print("✅ 获取积分余额成功")
+            balance = response.json()
+            print(f"当前积分: {balance['points_balance']}")
+            print(f"累计获得: {balance['total_points_earned']}")
+            print(f"累计消费: {balance['total_points_spent']}")
+            return balance
+        else:
+            print(f"❌ 获取积分余额失败: {response.status_code}")
+            return None
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 获取积分余额请求失败: {e}")
+        return None
+
+def test_get_points_transactions(token):
+    """测试获取积分交易记录"""
+    print("\n🔍 测试获取积分交易记录...")
+    
+    try:
+        response = requests.get(
+            f"{API_URL}/points/transactions",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        if response.status_code == 200:
+            print("✅ 获取积分交易记录成功")
+            data = response.json()
+            print(f"交易记录数量: {len(data['transactions'])}")
+            print(f"总记录数: {data['total']}")
+            return data
+        else:
+            print(f"❌ 获取积分交易记录失败: {response.status_code}")
+            return None
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 获取积分交易记录请求失败: {e}")
+        return None
+
+def test_claim_login_bonus(token):
+    """测试领取登录奖励"""
+    print("\n🔍 测试领取登录奖励...")
+    
+    try:
+        response = requests.post(
+            f"{API_URL}/points/login-bonus",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        if response.status_code == 200:
+            print("✅ 领取登录奖励成功")
+            transaction = response.json()
+            print(f"奖励积分: {transaction['amount']}")
+            print(f"交易后余额: {transaction['balance_after']}")
+            return transaction
+        else:
+            print(f"❌ 领取登录奖励失败: {response.status_code}")
+            return None
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 领取登录奖励请求失败: {e}")
+        return None
+
+def test_image_generation(token):
+    """测试图片生成"""
+    print("\n🎨 测试图片生成...")
+    
+    # 1. 先获取当前积分
+    balance_before_res = requests.get(
+        f"{API_URL}/points/balance",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    if balance_before_res.status_code != 200:
+        print("❌ 获取初始积分失败，跳过测试")
+        return False
+    balance_before = Decimal(balance_before_res.json()['points_balance'])
+    print(f"  生成前积分: {balance_before}")
+
+    # 2. 检查积分是否足够
+    cost = 50 # 与config中设置的成本保持一致
+    if balance_before < cost:
+        print(f"  积分不足（需要{cost}），跳过图片生成测试")
+        return False # 不是测试失败，而是无法测试
+
+    # 3. 发起图片生成请求
+    payload = {"prompt": "a cute cat"}
+    try:
+        response = requests.post(
+            f"{API_URL}/generate/image",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        if response.status_code == 200:
+            print("✅ 图片生成成功")
+            data = response.json()
+            print(f"  图片URL: {data['image_url']}")
+            print(f"  消耗积分: {data['points_spent']}")
+            print(f"  剩余积分: {data['points_remaining']}")
+            
+            # 验证积分扣除是否正确
+            expected_balance = balance_before - Decimal(str(data['points_spent']))
+            actual_balance = Decimal(str(data['points_remaining']))
+            
+            if expected_balance == actual_balance:
+                print("✅ 积分扣除正确")
+                return True
+            else:
+                print(f"❌ 积分扣除错误: 期望 {expected_balance}, 实际 {actual_balance}")
+                return False
+        else:
+            print(f"❌ 图片生成失败: {response.status_code} - {response.text}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 图片生成请求失败: {e}")
+        return False
+
 def main():
     """主函数"""
     print("🚀 开始API测试...")
@@ -198,9 +327,30 @@ def main():
     # 测试获取用户列表
     test_get_users_list(token)
     
+    # 测试积分功能
+    print("\n" + "="*50)
+    print("🎯 开始测试积分功能...")
+    
+    # 测试获取积分余额
+    balance = test_get_points_balance(token)
+    
+    # 测试获取积分交易记录
+    test_get_points_transactions(token)
+    
+    # 测试领取登录奖励
+    test_claim_login_bonus(token)
+    
+    # 再次查看积分余额
+    updated_balance = test_get_points_balance(token)
+    
+    # 测试图片生成
+    test_image_generation(token)
+
     print("\n🎉 API测试完成!")
     print(f"✅ 测试用户: {user_data['username']}")
     print(f"🔑 访问令牌: {token[:50]}...")
+    if updated_balance:
+        print(f"💰 最终积分余额: {updated_balance['points_balance']}")
 
 if __name__ == "__main__":
     main() 

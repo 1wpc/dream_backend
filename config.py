@@ -20,6 +20,17 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Dream Backend"
     DEBUG: bool = True
     
+    # 图片生成服务配置
+    IMAGE_GENERATION_COST: int = 50  # 每次生成图片消耗的积分
+    VOLCANO_ENGINE_ACCESS_KEY: str = "your_volcano_access_key_here"
+    VOLCANO_ENGINE_SECRET_KEY: str = "your_volcano_secret_key_here"
+    VOLCANO_ENGINE_REGION: str = "cn-north-1"
+    VOLCANO_ENGINE_SERVICE_NAME: str = "cv"
+    
+    # DeepSeek API 配置
+    DEEPSEEK_API_KEY: str = "your_deepseek_api_key_here"
+    DEEPSEEK_CHAT_COST: int = 1 # 每次聊天的积分消耗
+    
     @property
     def DATABASE_URL(self) -> str:
         return f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}"
