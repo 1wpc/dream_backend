@@ -31,8 +31,13 @@ class AlipayService:
         alipay_client_config.server_url = 'https://openapi.alipay.com/gateway.do'  # 正式环境
         # alipay_client_config.server_url = 'https://openapi.alipaydev.com/gateway.do'  # 沙箱环境
         alipay_client_config.app_id = settings.ALIPAY_APP_ID
-        alipay_client_config.app_private_key = settings.ALIPAY_APP_PRIVATE_KEY
-        alipay_client_config.alipay_public_key = settings.ALIPAY_PUBLIC_KEY
+        
+        # 处理私钥格式
+        app_private_key = self._format_private_key(settings.ALIPAY_APP_PRIVATE_KEY)
+        alipay_public_key = self._format_public_key(settings.ALIPAY_PUBLIC_KEY)
+        
+        alipay_client_config.app_private_key = app_private_key
+        alipay_client_config.alipay_public_key = alipay_public_key
         alipay_client_config.sign_type = 'RSA2'
         
         # 创建客户端实例
@@ -95,6 +100,60 @@ class AlipayService:
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         uuid_suffix = str(uuid.uuid4()).replace('-', '')[-8:]
         return f"{timestamp}{uuid_suffix}"
+    
+    def _format_private_key(self, private_key: str) -> str:
+        """
+        格式化私钥，确保包含正确的头尾标识
+        
+        Args:
+            private_key: 原始私钥字符串
+            
+        Returns:
+            str: 格式化后的私钥
+        """
+        # 移除所有空白字符和换行符
+        key = private_key.strip().replace('\n', '').replace('\r', '').replace(' ', '')
+        
+        # 移除可能存在的头尾标识
+        key = key.replace('-----BEGIN RSA PRIVATE KEY-----', '')
+        key = key.replace('-----END RSA PRIVATE KEY-----', '')
+        key = key.replace('-----BEGIN PRIVATE KEY-----', '')
+        key = key.replace('-----END PRIVATE KEY-----', '')
+        
+        # 添加正确的头尾标识和换行符
+        formatted_key = f"-----BEGIN RSA PRIVATE KEY-----\n"
+        # 每64个字符添加一个换行符
+        for i in range(0, len(key), 64):
+            formatted_key += key[i:i+64] + "\n"
+        formatted_key += "-----END RSA PRIVATE KEY-----"
+        
+        return formatted_key
+    
+    def _format_public_key(self, public_key: str) -> str:
+        """
+        格式化公钥，确保包含正确的头尾标识
+        
+        Args:
+            public_key: 原始公钥字符串
+            
+        Returns:
+            str: 格式化后的公钥
+        """
+        # 移除所有空白字符和换行符
+        key = public_key.strip().replace('\n', '').replace('\r', '').replace(' ', '')
+        
+        # 移除可能存在的头尾标识
+        key = key.replace('-----BEGIN PUBLIC KEY-----', '')
+        key = key.replace('-----END PUBLIC KEY-----', '')
+        
+        # 添加正确的头尾标识和换行符
+        formatted_key = f"-----BEGIN PUBLIC KEY-----\n"
+        # 每64个字符添加一个换行符
+        for i in range(0, len(key), 64):
+            formatted_key += key[i:i+64] + "\n"
+        formatted_key += "-----END PUBLIC KEY-----"
+        
+        return formatted_key
     
     def verify_notify(self, post_data: dict) -> bool:
         """
