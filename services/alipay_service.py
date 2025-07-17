@@ -187,7 +187,7 @@ class AlipayService:
             
             # 验证签名
             alipay_public_key = self._format_public_key(settings.ALIPAY_PUBLIC_KEY)
-            is_valid = verify_with_rsa(alipay_public_key, sign_content, sign, 'utf-8')
+            is_valid = verify_with_rsa(alipay_public_key, sign_content, sign)
             
             if is_valid:
                 logger.info("支付宝异步通知签名验证成功")
