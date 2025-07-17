@@ -101,6 +101,7 @@ def test_payment_flow(db: Session, user: User):
         print(f"✅ 积分奖励成功: {points_to_award} 积分")
     except Exception as e:
         print(f"❌ 积分奖励过程中发生异常: {e}")
+        print(f"异常类型: {type(e).__name__}")
         import traceback
         traceback.print_exc()
         return False
