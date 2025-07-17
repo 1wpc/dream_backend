@@ -93,7 +93,7 @@ class Order(Base):
     
     # 积分奖励相关
     points_awarded = Column(Numeric(10, 2), default=0, nullable=False, comment="已奖励积分")
-    points_rate = Column(Numeric(5, 4), default=0.01, nullable=False, comment="积分奖励比例")
+    points_rate = Column(Numeric(5, 4), default=10, nullable=False, comment="积分奖励比例")
     
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
