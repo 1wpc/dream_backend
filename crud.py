@@ -175,7 +175,7 @@ def create_order(
     subject: str,
     body: str,
     total_amount: Decimal,
-    points_rate: Decimal = Decimal('0.01')
+    points_rate: Decimal = Decimal('10')
 ) -> Optional[Order]:
     """创建订单"""
     try:
