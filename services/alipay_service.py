@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
+from io import BytesIO
 
 from alipay.aop.api.AlipayClientConfig import AlipayClientConfig
 from alipay.aop.api.DefaultAlipayClient import DefaultAlipayClient
@@ -187,7 +188,9 @@ class AlipayService:
             
             # 验证签名
             alipay_public_key = self._format_public_key(settings.ALIPAY_PUBLIC_KEY)
-            is_valid = verify_with_rsa(alipay_public_key, sign_content, sign)
+            # 将待签名字符串转换为字节流
+            sign_content_bytes = BytesIO(sign_content.encode('utf-8'))
+            is_valid = verify_with_rsa(alipay_public_key, sign_content_bytes, sign)
             
             if is_valid:
                 logger.info("支付宝异步通知签名验证成功")
