@@ -17,6 +17,15 @@ class PointTransactionType(enum.Enum):
     ACTIVITY = "activity"           # 活动奖励
     IMAGE_GENERATION = "image_generation" # 图片生成消费
     DEEPSEEK_CHAT = "deepseek_chat" # DeepSeek聊天消费
+    PAYMENT_REWARD = "payment_reward" # 支付奖励
+
+class OrderStatus(enum.Enum):
+    """订单状态"""
+    PENDING = "pending"             # 待支付
+    PAID = "paid"                   # 已支付
+    CANCELLED = "cancelled"         # 已取消
+    REFUNDED = "refunded"           # 已退款
+    CLOSED = "closed"               # 已关闭
 
 class User(Base):
     __tablename__ = "users"
@@ -41,6 +50,7 @@ class User(Base):
     
     # 关系
     point_transactions = relationship("PointTransaction", back_populates="user", cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}', points={self.points_balance})>"
@@ -63,4 +73,33 @@ class PointTransaction(Base):
     user = relationship("User", back_populates="point_transactions")
     
     def __repr__(self):
-        return f"<PointTransaction(id={self.id}, user_id={self.user_id}, amount={self.amount}, type={self.transaction_type})>" 
+        return f"<PointTransaction(id={self.id}, user_id={self.user_id}, amount={self.amount}, type={self.transaction_type})>"
+
+class Order(Base):
+    __tablename__ = "orders"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="用户ID")
+    out_trade_no = Column(String(100), unique=True, index=True, nullable=False, comment="商户订单号")
+    trade_no = Column(String(100), nullable=True, comment="支付宝交易号")
+    subject = Column(String(256), nullable=False, comment="订单标题")
+    body = Column(Text, nullable=True, comment="订单描述")
+    total_amount = Column(Numeric(10, 2), nullable=False, comment="订单金额")
+    status = Column(SQLEnum(OrderStatus), default=OrderStatus.PENDING, nullable=False, comment="订单状态")
+    
+    # 支付相关信息
+    paid_amount = Column(Numeric(10, 2), default=0, nullable=False, comment="实际支付金额")
+    payment_time = Column(DateTime(timezone=True), nullable=True, comment="支付时间")
+    
+    # 积分奖励相关
+    points_awarded = Column(Numeric(10, 2), default=0, nullable=False, comment="已奖励积分")
+    points_rate = Column(Numeric(5, 4), default=0.01, nullable=False, comment="积分奖励比例")
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
+    
+    # 关系
+    user = relationship("User", back_populates="orders")
+    
+    def __repr__(self):
+        return f"<Order(id={self.id}, out_trade_no='{self.out_trade_no}', user_id={self.user_id}, status={self.status})>"

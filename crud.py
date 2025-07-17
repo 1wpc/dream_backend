@@ -1,11 +1,12 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import desc
-from models import User, PointTransaction, PointTransactionType
+from models import User, PointTransaction, PointTransactionType, Order, OrderStatus
 from schemas import UserCreate, UserUpdate, PointTransactionCreate
 from auth import get_password_hash
 from typing import Optional, List
 from decimal import Decimal
+from datetime import datetime
 
 def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
     """根据ID获取用户"""
@@ -166,6 +167,123 @@ def add_points(
         db.rollback()
         return None
 
+# 订单相关操作
+def create_order(
+    db: Session,
+    user_id: int,
+    out_trade_no: str,
+    subject: str,
+    body: str,
+    total_amount: Decimal,
+    points_rate: Decimal = Decimal('0.01')
+) -> Optional[Order]:
+    """创建订单"""
+    try:
+        order = Order(
+            user_id=user_id,
+            out_trade_no=out_trade_no,
+            subject=subject,
+            body=body,
+            total_amount=total_amount,
+            points_rate=points_rate,
+            status=OrderStatus.PENDING
+        )
+        
+        db.add(order)
+        db.commit()
+        db.refresh(order)
+        
+        return order
+        
+    except Exception:
+        db.rollback()
+        return None
+
+def get_order_by_out_trade_no(db: Session, out_trade_no: str) -> Optional[Order]:
+    """根据商户订单号获取订单"""
+    return db.query(Order).filter(Order.out_trade_no == out_trade_no).first()
+
+def get_order_by_trade_no(db: Session, trade_no: str) -> Optional[Order]:
+    """根据支付宝交易号获取订单"""
+    return db.query(Order).filter(Order.trade_no == trade_no).first()
+
+def update_order_payment_success(
+    db: Session,
+    out_trade_no: str,
+    trade_no: str,
+    paid_amount: Decimal,
+    payment_time: datetime = None
+) -> Optional[Order]:
+    """更新订单为支付成功状态"""
+    try:
+        order = get_order_by_out_trade_no(db, out_trade_no)
+        if not order:
+            return None
+        
+        order.trade_no = trade_no
+        order.paid_amount = paid_amount
+        order.payment_time = payment_time or datetime.now()
+        order.status = OrderStatus.PAID
+        
+        db.commit()
+        db.refresh(order)
+        
+        return order
+        
+    except Exception:
+        db.rollback()
+        return None
+
+def award_points_for_order(
+    db: Session,
+    order_id: int,
+    points_amount: Decimal
+) -> Optional[tuple[Order, PointTransaction]]:
+    """为订单奖励积分"""
+    try:
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            return None
+        
+        # 检查是否已经奖励过积分
+        if order.points_awarded > 0:
+            return None
+        
+        # 添加积分
+        transaction = add_points(
+            db,
+            order.user_id,
+            points_amount,
+            PointTransactionType.PAYMENT_REWARD,
+            f"支付订单奖励积分: {order.subject}",
+            order.out_trade_no
+        )
+        
+        if not transaction:
+            return None
+        
+        # 更新订单的积分奖励记录
+        order.points_awarded = points_amount
+        db.commit()
+        db.refresh(order)
+        
+        return order, transaction
+        
+    except Exception:
+        db.rollback()
+        return None
+
+def get_user_orders(
+    db: Session,
+    user_id: int,
+    skip: int = 0,
+    limit: int = 50
+) -> List[Order]:
+    """获取用户订单列表"""
+    return db.query(Order).filter(
+        Order.user_id == user_id
+    ).order_by(desc(Order.created_at)).offset(skip).limit(limit).all()
+
 def deduct_points(
     db: Session, 
     user_id: int, 
@@ -290,4 +408,4 @@ def transfer_points(
         
     except Exception:
         db.rollback()
-        return None 
+        return None

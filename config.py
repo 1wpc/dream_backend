@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # 图片生成服务配置
-    IMAGE_GENERATION_COST: int = 50  # 每次生成图片消耗的积分
+    IMAGE_GENERATION_COST: int = 5  # 每次生成图片消耗的积分
     VOLCANO_ENGINE_ACCESS_KEY: str = "your_volcano_access_key_here"
     VOLCANO_ENGINE_SECRET_KEY: str = "your_volcano_secret_key_here"
     VOLCANO_ENGINE_REGION: str = "cn-north-1"

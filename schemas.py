@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, Field
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
@@ -171,10 +171,55 @@ class PaymentResponse(BaseModel):
     message: str  # 响应消息
 
 class PaymentNotification(BaseModel):
-    """支付宝异步通知"""
-    out_trade_no: str  # 商户订单号
-    trade_no: str  # 支付宝交易号
-    trade_status: str  # 交易状态
-    total_amount: Decimal  # 交易金额
-    buyer_id: str  # 买家支付宝用户号
-    seller_id: str  # 卖家支付宝用户号
+    """支付宝异步通知数据模型"""
+    # 基本通知信息
+    notify_time: str = Field(..., description="通知时间")
+    notify_type: str = Field(..., description="通知类型")
+    notify_id: str = Field(..., description="通知校验ID")
+    sign_type: str = Field(..., description="签名类型")
+    sign: str = Field(..., description="签名")
+    
+    # 应用信息
+    app_id: str = Field(..., description="开发者的app_id")
+    auth_app_id: Optional[str] = Field(None, description="授权方的app_id")
+    
+    # 交易信息
+    trade_no: str = Field(..., description="支付宝交易号")
+    out_trade_no: str = Field(..., description="商户订单号")
+    out_biz_no: Optional[str] = Field(None, description="商家业务号")
+    trade_status: str = Field(..., description="交易状态")
+    
+    # 金额信息
+    total_amount: Decimal = Field(..., description="订单金额")
+    receipt_amount: Optional[Decimal] = Field(None, description="实收金额")
+    invoice_amount: Optional[Decimal] = Field(None, description="开票金额")
+    buyer_pay_amount: Optional[Decimal] = Field(None, description="付款金额")
+    point_amount: Optional[Decimal] = Field(None, description="集分宝金额")
+    refund_fee: Optional[Decimal] = Field(None, description="总退款金额")
+    send_back_fee: Optional[Decimal] = Field(None, description="实际退款金额")
+    
+    # 用户信息
+    buyer_id: Optional[str] = Field(None, description="买家支付宝用户号")
+    buyer_logon_id: Optional[str] = Field(None, description="买家支付宝账号")
+    seller_id: Optional[str] = Field(None, description="卖家支付宝用户号")
+    seller_email: Optional[str] = Field(None, description="卖家支付宝账号")
+    
+    # 订单信息
+    subject: Optional[str] = Field(None, description="订单标题")
+    body: Optional[str] = Field(None, description="商品描述")
+    passback_params: Optional[str] = Field(None, description="公共回传参数")
+    
+    # 时间信息
+    gmt_create: Optional[str] = Field(None, description="交易创建时间")
+    gmt_payment: Optional[str] = Field(None, description="交易付款时间")
+    gmt_refund: Optional[str] = Field(None, description="交易退款时间")
+    gmt_close: Optional[str] = Field(None, description="交易结束时间")
+    
+    # 资金和优惠券信息
+    fund_bill_list: Optional[str] = Field(None, description="支付金额信息")
+    voucher_detail_list: Optional[str] = Field(None, description="优惠券信息")
+    
+    class Config:
+        json_encoders = {
+            Decimal: lambda v: str(v)
+        }

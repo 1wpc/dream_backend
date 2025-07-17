@@ -11,6 +11,8 @@ from alipay.aop.api.AlipayClientConfig import AlipayClientConfig
 from alipay.aop.api.DefaultAlipayClient import DefaultAlipayClient
 from alipay.aop.api.domain.AlipayTradeAppPayModel import AlipayTradeAppPayModel
 from alipay.aop.api.request.AlipayTradeAppPayRequest import AlipayTradeAppPayRequest
+from alipay.aop.api.util.SignatureUtils import verify_with_rsa
+import urllib.parse
 
 from config import settings
 
@@ -80,6 +82,11 @@ class AlipayService:
             
             # 创建请求对象
             request = AlipayTradeAppPayRequest(biz_model=model)
+            
+            # 设置异步通知URL
+            if settings.ALIPAY_NOTIFY_URL:
+                request.notify_url = settings.ALIPAY_NOTIFY_URL
+                logger.info(f"设置异步通知URL: {settings.ALIPAY_NOTIFY_URL}")
             
             # 执行请求，获取订单字符串
             response = self.client.sdk_execute(request)
@@ -166,14 +173,101 @@ class AlipayService:
             bool: 验证结果
         """
         try:
-            # 这里应该实现签名验证逻辑
-            # 由于支付宝SDK的验证方法比较复杂，这里先返回True
-            # 在实际生产环境中，必须实现完整的签名验证
-            logger.info(f"收到支付宝异步通知: {post_data}")
-            return True
+            # 获取签名
+            sign = post_data.get('sign')
+            if not sign:
+                logger.error("异步通知中缺少签名")
+                return False
+            
+            # 移除sign和sign_type参数
+            params = {k: v for k, v in post_data.items() if k not in ['sign', 'sign_type']}
+            
+            # 构造待签名字符串
+            sign_content = self._build_sign_content(params)
+            
+            # 验证签名
+            alipay_public_key = self._format_public_key(settings.ALIPAY_PUBLIC_KEY)
+            is_valid = verify_with_rsa(alipay_public_key, sign_content, sign, 'utf-8')
+            
+            if is_valid:
+                logger.info("支付宝异步通知签名验证成功")
+            else:
+                logger.error("支付宝异步通知签名验证失败")
+            
+            return is_valid
+            
         except Exception as e:
             logger.error(f"验证支付宝通知签名失败: {str(e)}")
+            logger.error(traceback.format_exc())
             return False
+    
+    def _build_sign_content(self, params: dict) -> str:
+        """
+        构造待签名字符串
+        
+        Args:
+            params: 参数字典
+            
+        Returns:
+            str: 待签名字符串
+        """
+        # 过滤空值参数
+        filtered_params = {k: v for k, v in params.items() if v is not None and v != ''}
+        
+        # 按参数名ASCII码从小到大排序
+        sorted_params = sorted(filtered_params.items())
+        
+        # 构造待签名字符串
+        sign_content = '&'.join([f"{k}={v}" for k, v in sorted_params])
+        
+        logger.debug(f"待签名字符串: {sign_content}")
+        return sign_content
+    
+    def validate_notify_params(self, post_data: dict) -> tuple[bool, str]:
+        """
+        验证异步通知参数的完整性和有效性
+        
+        Args:
+            post_data: 支付宝POST过来的数据
+            
+        Returns:
+            tuple[bool, str]: (验证结果, 错误信息)
+        """
+        try:
+            # 检查必要参数
+            required_params = [
+                'notify_time', 'notify_type', 'notify_id', 'app_id',
+                'trade_no', 'out_trade_no', 'trade_status', 'total_amount'
+            ]
+            
+            missing_params = []
+            for param in required_params:
+                if param not in post_data or not post_data[param]:
+                    missing_params.append(param)
+            
+            if missing_params:
+                error_msg = f"缺少必要参数: {', '.join(missing_params)}"
+                logger.error(error_msg)
+                return False, error_msg
+            
+            # 验证app_id
+            if post_data.get('app_id') != settings.ALIPAY_APP_ID:
+                error_msg = f"app_id不匹配: 期望={settings.ALIPAY_APP_ID}, 实际={post_data.get('app_id')}"
+                logger.error(error_msg)
+                return False, error_msg
+            
+            # 验证通知类型
+            if post_data.get('notify_type') != 'trade_status_sync':
+                error_msg = f"不支持的通知类型: {post_data.get('notify_type')}"
+                logger.error(error_msg)
+                return False, error_msg
+            
+            return True, ""
+            
+        except Exception as e:
+            error_msg = f"验证通知参数失败: {str(e)}"
+            logger.error(error_msg)
+            return False, error_msg
 
 # 创建全局实例
 alipay_service = AlipayService()
