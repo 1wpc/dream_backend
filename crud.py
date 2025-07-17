@@ -195,7 +195,11 @@ def create_order(
         
         return order
         
-    except Exception:
+    except Exception as e:
+        print(f"❌ 创建订单异常: {e}")
+        print(f"异常类型: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
         db.rollback()
         return None
 
