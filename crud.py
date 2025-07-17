@@ -249,23 +249,40 @@ def award_points_for_order(
         if order.points_awarded > 0:
             return None
         
-        # 添加积分
-        transaction = add_points(
-            db,
-            order.user_id,
-            points_amount,
-            PointTransactionType.PAYMENT_REWARD,
-            f"支付订单奖励积分: {order.subject}",
-            order.out_trade_no
+        # 获取用户信息
+        db_user = get_user_by_id(db, order.user_id)
+        if not db_user:
+            return None
+        
+        # 记录交易前余额
+        balance_before = db_user.points_balance
+        balance_after = balance_before + points_amount
+        
+        # 创建积分交易记录
+        transaction = PointTransaction(
+            user_id=order.user_id,
+            transaction_type=PointTransactionType.PAYMENT_REWARD,
+            amount=points_amount,
+            balance_before=balance_before,
+            balance_after=balance_after,
+            description=f"支付订单奖励积分: {order.subject}",
+            reference_id=order.out_trade_no
         )
         
-        if not transaction:
-            return None
+        # 更新用户积分
+        db_user.points_balance = balance_after
+        db_user.total_points_earned += points_amount
         
         # 更新订单的积分奖励记录
         order.points_awarded = points_amount
+        
+        # 添加事务记录到数据库
+        db.add(transaction)
+        
+        # 统一提交所有更改
         db.commit()
         db.refresh(order)
+        db.refresh(transaction)
         
         return order, transaction
         
