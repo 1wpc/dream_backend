@@ -79,6 +79,65 @@ class UserResponse(BaseModel):
     user: User
     message: str
 
+# 邮箱验证相关Schema
+class EmailVerificationRequest(BaseModel):
+    """发送验证码请求"""
+    email: EmailStr
+    action: Optional[str] = "注册"
+
+class EmailVerificationResponse(BaseModel):
+    """发送验证码响应"""
+    success: bool
+    message: str
+    code: str
+
+class EmailCodeVerifyRequest(BaseModel):
+    """验证验证码请求"""
+    email: EmailStr
+    code: str
+    action: Optional[str] = "register"
+    
+    @field_validator('code')
+    @classmethod
+    def validate_code(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('验证码不能为空')
+        if len(v.strip()) != 6:
+            raise ValueError('验证码必须为6位数字')
+        if not v.strip().isdigit():
+            raise ValueError('验证码必须为数字')
+        return v.strip()
+
+class UserCreateWithVerification(UserBase):
+    """带验证码的用户注册"""
+    password: str
+    verification_code: str
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 6:
+            raise ValueError('密码长度至少为6位')
+        return v
+    
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        if len(v) < 3:
+            raise ValueError('用户名长度至少为3位')
+        return v
+    
+    @field_validator('verification_code')
+    @classmethod
+    def validate_verification_code(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('验证码不能为空')
+        if len(v.strip()) != 6:
+            raise ValueError('验证码必须为6位数字')
+        if not v.strip().isdigit():
+            raise ValueError('验证码必须为数字')
+        return v.strip()
+
 # 积分相关Schema
 class PointTransactionCreate(BaseModel):
     user_id: int

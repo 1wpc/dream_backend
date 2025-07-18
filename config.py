@@ -38,6 +38,20 @@ class Settings(BaseSettings):
     ALIPAY_SELLER_ID: str = "your_alipay_seller_id_here"
     ALIPAY_NOTIFY_URL: str = "https://your-domain.com/api/v1/payment/notify"  # 异步通知地址
     
+    # Redis配置
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: Optional[str] = None
+    REDIS_DB: int = 0
+    
+    # 邮箱验证配置
+    EMAIL_VERIFICATION_EXPIRE_MINUTES: int = 5  # 验证码有效期（分钟）
+    TENCENTCLOUD_SECRET_ID: str = "your_tencentcloud_secret_id_here"
+    TENCENTCLOUD_SECRET_KEY: str = "your_tencentcloud_secret_key_here"
+    TENCENTCLOUD_SES_REGION: str = "ap-hongkong"
+    TENCENTCLOUD_SES_FROM_EMAIL: str = "mijiutech@bot.mijiu.ltd"
+    TENCENTCLOUD_SES_TEMPLATE_ID: int = 144111
+    
     @property
     def DATABASE_URL(self) -> str:
         return f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}"

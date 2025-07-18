@@ -4,7 +4,11 @@ from datetime import timedelta
 from typing import List
 
 from database import get_db
-from schemas import UserCreate, UserUpdate, User, UserLogin, Token, Message, UserResponse
+from schemas import (
+    UserCreate, UserUpdate, User, UserLogin, Token, Message, UserResponse,
+    EmailVerificationRequest, EmailVerificationResponse, EmailCodeVerifyRequest,
+    UserCreateWithVerification
+)
 from auth import (
     authenticate_user, 
     create_access_token, 
@@ -13,6 +17,7 @@ from auth import (
 )
 from config import settings
 import crud
+from services.email_service import email_service
 
 router = APIRouter(
     prefix="/users",
@@ -20,9 +25,41 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+@router.post("/send-verification-code", response_model=EmailVerificationResponse)
+async def send_verification_code(request: EmailVerificationRequest):
+    """发送邮箱验证码"""
+    result = email_service.send_verification_code(request.email, request.action)
+    
+    if not result["success"]:
+        if result["code"] == "RATE_LIMIT":
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=result["message"]
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result["message"]
+            )
+    
+    return EmailVerificationResponse(**result)
+
+@router.post("/verify-email-code", response_model=EmailVerificationResponse)
+async def verify_email_code(request: EmailCodeVerifyRequest):
+    """验证邮箱验证码"""
+    result = email_service.verify_code(request.email, request.code, request.action)
+    
+    if not result["success"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result["message"]
+        )
+    
+    return EmailVerificationResponse(**result)
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
-    """用户注册"""
+    """用户注册（无验证码，保持向后兼容）"""
     try:
         db_user = crud.create_user(db=db, user=user)
         return UserResponse(
@@ -33,6 +70,47 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
+        )
+
+@router.post("/register-with-verification", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def register_with_verification(user: UserCreateWithVerification, db: Session = Depends(get_db)):
+    """用户注册（需要邮箱验证码）"""
+    try:
+        # 验证邮箱验证码
+        verification_result = email_service.verify_code(user.email, user.verification_code, "register")
+        if not verification_result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=verification_result["message"]
+            )
+        
+        # 创建用户对象（不包含验证码字段）
+        user_create = UserCreate(
+            username=user.username,
+            email=user.email,
+            password=user.password,
+            full_name=user.full_name,
+            phone=user.phone,
+            avatar=user.avatar
+        )
+        
+        # 创建用户
+        db_user = crud.create_user(db=db, user=user_create)
+        return UserResponse(
+            user=User.model_validate(db_user),
+            message="用户注册成功，邮箱验证通过"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="注册失败，请稍后重试"
         )
 
 @router.post("/login", response_model=Token)
@@ -181,4 +259,4 @@ async def deactivate_user(
             detail="用户不存在"
         )
     
-    return Message(message="用户禁用成功") 
+    return Message(message="用户禁用成功")
