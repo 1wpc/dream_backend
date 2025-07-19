@@ -143,7 +143,7 @@ class EmailService:
             print(f"❌ 获取缓存TTL失败: {e}")
             return -1
     
-    def send_verification_code(self, email: str, action: str = "注册") -> dict:
+    def send_verification_code(self, email: str, action: str = "register") -> dict:
         """发送验证码邮件"""
         try:
             # 生成验证码
@@ -163,9 +163,11 @@ class EmailService:
             
             # 准备邮件模板数据
             current_time = datetime.now()
+            # 将action转换为中文显示
+            action_display = "注册" if action.lower() == "register" else action
             template_data = {
                 "code": code,
-                "action": action,
+                "action": action_display,
                 "time": settings.EMAIL_VERIFICATION_EXPIRE_MINUTES,
                 "date": current_time.strftime("%Y.%m.%d")
             }

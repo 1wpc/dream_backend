@@ -83,7 +83,7 @@ class UserResponse(BaseModel):
 class EmailVerificationRequest(BaseModel):
     """发送验证码请求"""
     email: EmailStr
-    action: Optional[str] = "注册"
+    action: Optional[str] = "register"
 
 class EmailVerificationResponse(BaseModel):
     """发送验证码响应"""
