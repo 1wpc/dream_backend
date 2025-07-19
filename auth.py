@@ -57,8 +57,14 @@ def verify_token(token: str) -> TokenData:
         )
 
 def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
-    """验证用户身份"""
+    """验证用户身份（支持用户名或邮箱登录）"""
+    # 先尝试用户名登录
     user = db.query(User).filter(User.username == username).first()
+    
+    # 如果用户名不存在且输入包含@符号，尝试邮箱登录
+    if not user and "@" in username:
+        user = db.query(User).filter(User.email == username).first()
+    
     if not user:
         return None
     if not verify_password(password, user.hashed_password):
@@ -89,4 +95,4 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="用户账号已被禁用"
         )
-    return current_user 
+    return current_user

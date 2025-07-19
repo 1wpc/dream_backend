@@ -65,6 +65,23 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class EmailLoginRequest(BaseModel):
+    """邮箱登录请求"""
+    email: EmailStr
+    password: str
+    verification_code: str
+    
+    @field_validator('verification_code')
+    @classmethod
+    def validate_verification_code(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('验证码不能为空')
+        if len(v.strip()) != 6:
+            raise ValueError('验证码必须为6位数字')
+        if not v.strip().isdigit():
+            raise ValueError('验证码必须为数字')
+        return v.strip()
+
 class Token(BaseModel):
     access_token: str
     token_type: str

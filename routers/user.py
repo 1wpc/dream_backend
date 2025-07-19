@@ -7,13 +7,14 @@ from database import get_db
 from schemas import (
     UserCreate, UserUpdate, User, UserLogin, Token, Message, UserResponse,
     EmailVerificationRequest, EmailVerificationResponse, EmailCodeVerifyRequest,
-    UserCreateWithVerification
+    UserCreateWithVerification, EmailLoginRequest
 )
 from auth import (
     authenticate_user, 
     create_access_token, 
     get_current_active_user,
-    get_current_user
+    get_current_user,
+    verify_password
 )
 from config import settings
 import crud
@@ -118,6 +119,14 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     """用户登录"""
     user = authenticate_user(db, user_credentials.username, user_credentials.password)
     if not user:
+        # 检查是否是邮箱格式，如果是邮箱但用户不存在，提示需要先注册
+        if "@" in user_credentials.username:
+            existing_user = crud.get_user_by_email(db, user_credentials.username)
+            if not existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="该邮箱尚未注册，请先注册账号"
+                )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误",
@@ -139,6 +148,60 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
         "access_token": access_token,
         "token_type": "bearer"
     }
+
+@router.post("/login-with-email-verification", response_model=Token)
+async def login_with_email_verification(login_request: EmailLoginRequest, db: Session = Depends(get_db)):
+    """邮箱登录（需要邮箱验证码）"""
+    try:
+        # 1. 验证邮箱验证码
+        verification_result = email_service.verify_code(login_request.email, login_request.verification_code, "login")
+        if not verification_result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=verification_result["message"]
+            )
+        
+        # 2. 检查用户是否存在
+        user = crud.get_user_by_email(db, login_request.email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="该邮箱尚未注册，请先注册账号"
+            )
+        
+        # 3. 验证密码
+        if not verify_password(login_request.password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="密码错误",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # 4. 检查用户状态
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="用户账号已被禁用"
+            )
+        
+        # 5. 生成访问令牌
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.username}, expires_delta=access_token_expires
+        )
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="登录失败，请稍后重试"
+        )
 
 @router.get("/me", response_model=User)
 async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
