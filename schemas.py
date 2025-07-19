@@ -66,9 +66,8 @@ class UserLogin(BaseModel):
     password: str
 
 class EmailLoginRequest(BaseModel):
-    """邮箱登录请求"""
+    """邮箱验证码登录请求"""
     email: EmailStr
-    password: str
     verification_code: str
     
     @field_validator('verification_code')

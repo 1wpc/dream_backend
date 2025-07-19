@@ -151,7 +151,7 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/login-with-email-verification", response_model=Token)
 async def login_with_email_verification(login_request: EmailLoginRequest, db: Session = Depends(get_db)):
-    """邮箱登录（需要邮箱验证码）"""
+    """邮箱验证码登录（无需密码）"""
     try:
         # 1. 验证邮箱验证码
         verification_result = email_service.verify_code(login_request.email, login_request.verification_code, "login")
@@ -169,22 +169,14 @@ async def login_with_email_verification(login_request: EmailLoginRequest, db: Se
                 detail="该邮箱尚未注册，请先注册账号"
             )
         
-        # 3. 验证密码
-        if not verify_password(login_request.password, user.hashed_password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="密码错误",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # 4. 检查用户状态
+        # 3. 检查用户状态
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="用户账号已被禁用"
             )
         
-        # 5. 生成访问令牌
+        # 4. 生成访问令牌
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": user.username}, expires_delta=access_token_expires

@@ -124,11 +124,10 @@ def test_email_login_with_verification():
         
         # 模拟验证码（实际应用中需要从邮件获取）
         print("⚠️ 注意: 实际使用时需要从邮件中获取验证码")
-        print("📝 邮箱登录验证接口已创建: POST /api/v1/users/login-with-email-verification")
+        print("📝 邮箱验证码登录接口已创建: POST /api/v1/users/login-with-email-verification")
         print("📋 请求格式:")
         print(json.dumps({
             "email": test_email,
-            "password": test_password,
             "verification_code": "123456"
         }, indent=2, ensure_ascii=False))
         
@@ -238,18 +237,18 @@ def main():
     print("\n📋 新增功能说明:")
     print("1. ✅ 注册时邮箱重复检查 - 已实现")
     print("2. ✅ 登录时邮箱存在性检查 - 已实现")
-    print("3. ✅ 邮箱登录验证接口 - 已实现")
+    print("3. ✅ 邮箱验证码登录接口 - 已实现")
     print("4. ✅ 用户名和邮箱登录支持 - 已实现")
     
     print("\n🔗 新增API接口:")
     print("- POST /api/v1/users/login-with-email-verification")
-    print("  邮箱登录（需要邮箱验证码）")
+    print("  邮箱验证码登录（无需密码）")
     
     print("\n📝 使用说明:")
     print("1. 发送登录验证码: POST /api/v1/users/send-verification-code")
     print("   请求体: {\"email\": \"user@example.com\", \"action\": \"login\"}")
-    print("2. 邮箱验证登录: POST /api/v1/users/login-with-email-verification")
-    print("   请求体: {\"email\": \"user@example.com\", \"password\": \"password\", \"verification_code\": \"123456\"}")
+    print("2. 邮箱验证码登录: POST /api/v1/users/login-with-email-verification")
+    print("   请求体: {\"email\": \"user@example.com\", \"verification_code\": \"123456\"}")
 
 if __name__ == "__main__":
     main()
