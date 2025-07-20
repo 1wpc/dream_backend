@@ -5,9 +5,9 @@ from typing import List
 
 from database import get_db
 from schemas import (
-    UserCreate, UserUpdate, User, UserLogin, Token, Message, UserResponse,
+    UserCreate, User, UserLogin, UserUpdate, UserResponse, Token, Message,
     EmailVerificationRequest, EmailVerificationResponse, EmailCodeVerifyRequest,
-    UserCreateWithVerification, EmailLoginRequest
+    UserCreateWithVerification, EmailLoginRequest, UserRegisterResponse
 )
 from auth import (
     authenticate_user, 
@@ -58,14 +58,23 @@ async def verify_email_code(request: EmailCodeVerifyRequest):
     
     return EmailVerificationResponse(**result)
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=UserRegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     """用户注册（无验证码，保持向后兼容）"""
     try:
         db_user = crud.create_user(db=db, user=user)
-        return UserResponse(
+        
+        # 生成访问令牌
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": db_user.username}, expires_delta=access_token_expires
+        )
+        
+        return UserRegisterResponse(
             user=User.model_validate(db_user),
-            message="用户注册成功"
+            access_token=access_token,
+            token_type="bearer",
+            message="用户注册成功，已自动登录"
         )
     except ValueError as e:
         raise HTTPException(
@@ -73,7 +82,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
             detail=str(e)
         )
 
-@router.post("/register-with-verification", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register-with-verification", response_model=UserRegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register_with_verification(user: UserCreateWithVerification, db: Session = Depends(get_db)):
     """用户注册（需要邮箱验证码）"""
     try:
@@ -97,9 +106,18 @@ async def register_with_verification(user: UserCreateWithVerification, db: Sessi
         
         # 创建用户
         db_user = crud.create_user(db=db, user=user_create)
-        return UserResponse(
+        
+        # 生成访问令牌
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": db_user.username}, expires_delta=access_token_expires
+        )
+        
+        return UserRegisterResponse(
             user=User.model_validate(db_user),
-            message="用户注册成功，邮箱验证通过"
+            access_token=access_token,
+            token_type="bearer",
+            message="用户注册成功，邮箱验证通过，已自动登录"
         )
     except ValueError as e:
         raise HTTPException(

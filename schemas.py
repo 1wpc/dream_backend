@@ -95,6 +95,13 @@ class UserResponse(BaseModel):
     user: User
     message: str
 
+class UserRegisterResponse(BaseModel):
+    """用户注册成功响应（包含token）"""
+    user: User
+    access_token: str
+    token_type: str
+    message: str
+
 # 邮箱验证相关Schema
 class EmailVerificationRequest(BaseModel):
     """发送验证码请求"""
