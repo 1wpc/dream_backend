@@ -240,10 +240,15 @@ class SMSLoginRequest(BaseModel):
             raise ValueError('验证码必须为数字')
         return v.strip()
 
-class UserCreateWithSMSVerification(UserBase):
+class UserCreateWithSMSVerification(BaseModel):
     """带短信验证码的用户注册"""
+    username: str
+    email: Optional[EmailStr] = None  # 邮箱变为可选
     password: str
     verification_code: str
+    full_name: Optional[str] = None
+    phone: str  # 手机号必填
+    avatar: Optional[str] = None
     
     @field_validator('password')
     @classmethod
@@ -258,6 +263,17 @@ class UserCreateWithSMSVerification(UserBase):
         if len(v) < 3:
             raise ValueError('用户名长度至少为3位')
         return v
+    
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('手机号不能为空')
+        import re
+        phone_pattern = r'^1[3-9]\d{9}$'
+        if not re.match(phone_pattern, v.strip()):
+            raise ValueError('请输入有效的手机号')
+        return v.strip()
     
     @field_validator('verification_code')
     @classmethod

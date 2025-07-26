@@ -61,29 +61,7 @@ async def verify_email_code(request: EmailCodeVerifyRequest):
     
     return EmailVerificationResponse(**result)
 
-@router.post("/register", response_model=UserRegisterResponse, status_code=status.HTTP_201_CREATED)
-async def register(user: UserCreate, db: Session = Depends(get_db)):
-    """用户注册（无验证码，保持向后兼容）"""
-    try:
-        db_user = crud.create_user(db=db, user=user)
-        
-        # 生成访问令牌
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": db_user.username}, expires_delta=access_token_expires
-        )
-        
-        return UserRegisterResponse(
-            user=User.model_validate(db_user),
-            access_token=access_token,
-            token_type="bearer",
-            message="用户注册成功，已自动登录"
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+# 原始注册接口已删除，现在只支持邮箱验证码注册和短信验证码注册
 
 @router.post("/register-with-verification", response_model=UserRegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register_with_verification(user: UserCreateWithVerification, db: Session = Depends(get_db)):
@@ -390,10 +368,13 @@ async def register_with_sms_verification(user: UserCreateWithSMSVerification, db
                 detail="该手机号已注册，请直接登录"
             )
         
+        # 如果邮箱为空，使用默认邮箱
+        email = user.email if user.email else "default@default.com"
+        
         # 创建用户对象（不包含验证码字段）
         user_create = UserCreate(
             username=user.username,
-            email=user.email,
+            email=email,
             password=user.password,
             full_name=user.full_name,
             phone=user.phone,
