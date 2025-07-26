@@ -16,3 +16,10 @@ alipay-sdk-python==3.7.660
 cryptography==41.0.7
 redis==5.0.1
 tencentcloud-sdk-python==3.0.1125
+alibabacloud-dysmsapi20170525==2.0.24
+alibabacloud-tea-openapi==0.3.7
+alibabacloud-darabonba-env==0.1.0
+alibabacloud-tea-util==0.3.11
+alibabacloud-tea-console==0.1.0
+alibabacloud-darabonba-string==0.1.0
+alibabacloud-darabonba-time==0.1.1

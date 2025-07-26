@@ -161,6 +161,115 @@ class UserCreateWithVerification(UserBase):
             raise ValueError('验证码必须为数字')
         return v.strip()
 
+# 短信验证相关Schema
+class SMSVerificationRequest(BaseModel):
+    """发送短信验证码请求"""
+    phone: str
+    action: Optional[str] = "register"
+    
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('手机号不能为空')
+        # 简单的手机号格式验证（中国大陆手机号）
+        import re
+        phone_pattern = r'^1[3-9]\d{9}$'
+        if not re.match(phone_pattern, v.strip()):
+            raise ValueError('请输入有效的手机号')
+        return v.strip()
+
+class SMSVerificationResponse(BaseModel):
+    """发送短信验证码响应"""
+    success: bool
+    message: str
+    code: str
+
+class SMSCodeVerifyRequest(BaseModel):
+    """验证短信验证码请求"""
+    phone: str
+    code: str
+    action: Optional[str] = "register"
+    
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('手机号不能为空')
+        import re
+        phone_pattern = r'^1[3-9]\d{9}$'
+        if not re.match(phone_pattern, v.strip()):
+            raise ValueError('请输入有效的手机号')
+        return v.strip()
+    
+    @field_validator('code')
+    @classmethod
+    def validate_code(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('验证码不能为空')
+        if len(v.strip()) != 6:
+            raise ValueError('验证码必须为6位数字')
+        if not v.strip().isdigit():
+            raise ValueError('验证码必须为数字')
+        return v.strip()
+
+class SMSLoginRequest(BaseModel):
+    """短信验证码登录请求"""
+    phone: str
+    verification_code: str
+    
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('手机号不能为空')
+        import re
+        phone_pattern = r'^1[3-9]\d{9}$'
+        if not re.match(phone_pattern, v.strip()):
+            raise ValueError('请输入有效的手机号')
+        return v.strip()
+    
+    @field_validator('verification_code')
+    @classmethod
+    def validate_verification_code(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('验证码不能为空')
+        if len(v.strip()) != 6:
+            raise ValueError('验证码必须为6位数字')
+        if not v.strip().isdigit():
+            raise ValueError('验证码必须为数字')
+        return v.strip()
+
+class UserCreateWithSMSVerification(UserBase):
+    """带短信验证码的用户注册"""
+    password: str
+    verification_code: str
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 6:
+            raise ValueError('密码长度至少为6位')
+        return v
+    
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        if len(v) < 3:
+            raise ValueError('用户名长度至少为3位')
+        return v
+    
+    @field_validator('verification_code')
+    @classmethod
+    def validate_verification_code(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('验证码不能为空')
+        if len(v.strip()) != 6:
+            raise ValueError('验证码必须为6位数字')
+        if not v.strip().isdigit():
+            raise ValueError('验证码必须为数字')
+        return v.strip()
+
 # 积分相关Schema
 class PointTransactionCreate(BaseModel):
     user_id: int

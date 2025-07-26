@@ -20,6 +20,10 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
     """根据邮箱获取用户"""
     return db.query(User).filter(User.email == email).first()
 
+def get_user_by_phone(db: Session, phone: str) -> Optional[User]:
+    """根据手机号获取用户"""
+    return db.query(User).filter(User.phone == phone).first()
+
 def create_user(db: Session, user: UserCreate) -> User:
     """创建新用户"""
     # 检查用户名是否已存在

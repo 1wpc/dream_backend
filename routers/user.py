@@ -7,7 +7,9 @@ from database import get_db
 from schemas import (
     UserCreate, User, UserLogin, UserUpdate, UserResponse, Token, Message,
     EmailVerificationRequest, EmailVerificationResponse, EmailCodeVerifyRequest,
-    UserCreateWithVerification, EmailLoginRequest, UserRegisterResponse
+    UserCreateWithVerification, EmailLoginRequest, UserRegisterResponse,
+    SMSVerificationRequest, SMSVerificationResponse, SMSCodeVerifyRequest,
+    SMSLoginRequest, UserCreateWithSMSVerification
 )
 from auth import (
     authenticate_user, 
@@ -19,6 +21,7 @@ from auth import (
 from config import settings
 import crud
 from services.email_service import email_service
+from services.sms_service import sms_service
 
 router = APIRouter(
     prefix="/users",
@@ -333,3 +336,140 @@ async def deactivate_user(
         )
     
     return Message(message="用户禁用成功")
+
+# 短信验证码相关接口
+@router.post("/send-sms-verification-code", response_model=SMSVerificationResponse)
+async def send_sms_verification_code(request: SMSVerificationRequest):
+    """发送短信验证码"""
+    result = sms_service.send_verification_code(request.phone, request.action)
+    
+    if not result["success"]:
+        if "频繁" in result["message"]:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=result["message"]
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result["message"]
+            )
+    
+    return SMSVerificationResponse(**result)
+
+@router.post("/verify-sms-code", response_model=SMSVerificationResponse)
+async def verify_sms_code(request: SMSCodeVerifyRequest):
+    """验证短信验证码"""
+    result = sms_service.verify_code(request.phone, request.code, request.action)
+    
+    if not result["success"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result["message"]
+        )
+    
+    return SMSVerificationResponse(**result)
+
+@router.post("/register-with-sms-verification", response_model=UserRegisterResponse, status_code=status.HTTP_201_CREATED)
+async def register_with_sms_verification(user: UserCreateWithSMSVerification, db: Session = Depends(get_db)):
+    """用户注册（需要短信验证码）"""
+    try:
+        # 验证短信验证码
+        verification_result = sms_service.verify_code(user.phone, user.verification_code, "register")
+        if not verification_result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=verification_result["message"]
+            )
+        
+        # 检查手机号是否已注册
+        existing_user = crud.get_user_by_phone(db, user.phone)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="该手机号已注册，请直接登录"
+            )
+        
+        # 创建用户对象（不包含验证码字段）
+        user_create = UserCreate(
+            username=user.username,
+            email=user.email,
+            password=user.password,
+            full_name=user.full_name,
+            phone=user.phone,
+            avatar=user.avatar
+        )
+        
+        # 创建用户
+        db_user = crud.create_user(db=db, user=user_create)
+        
+        # 生成访问令牌
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": db_user.username}, expires_delta=access_token_expires
+        )
+        
+        return UserRegisterResponse(
+            user=User.model_validate(db_user),
+            access_token=access_token,
+            token_type="bearer",
+            message="用户注册成功，短信验证通过，已自动登录"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="注册失败，请稍后重试"
+        )
+
+@router.post("/login-with-sms-verification", response_model=Token)
+async def login_with_sms_verification(login_request: SMSLoginRequest, db: Session = Depends(get_db)):
+    """短信验证码登录（无需密码）"""
+    try:
+        # 1. 验证短信验证码
+        verification_result = sms_service.verify_code(login_request.phone, login_request.verification_code, "login")
+        if not verification_result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=verification_result["message"]
+            )
+        
+        # 2. 检查用户是否存在
+        user = crud.get_user_by_phone(db, login_request.phone)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="该手机号尚未注册，请先注册账号"
+            )
+        
+        # 3. 检查用户状态
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="用户账号已被禁用"
+            )
+        
+        # 4. 生成访问令牌
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.username}, expires_delta=access_token_expires
+        )
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="登录失败，请稍后重试"
+        )

@@ -52,6 +52,13 @@ class Settings(BaseSettings):
     TENCENTCLOUD_SES_FROM_EMAIL: str = "mijiutech@bot.mijiu.ltd"
     TENCENTCLOUD_SES_TEMPLATE_ID: int = 144111
     
+    # 阿里云短信服务配置
+    ALIYUN_ACCESS_KEY_ID: str = "your_aliyun_access_key_id_here"
+    ALIYUN_ACCESS_KEY_SECRET: str = "your_aliyun_access_key_secret_here"
+    SMS_SIGN_NAME: str = "your_sms_sign_name_here"  # 短信签名
+    SMS_TEMPLATE_CODE: str = "your_sms_template_code_here"  # 短信模板代码
+    SMS_VERIFICATION_EXPIRE_MINUTES: int = 5  # 短信验证码有效期（分钟）
+    
     @property
     def DATABASE_URL(self) -> str:
         return f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}"
