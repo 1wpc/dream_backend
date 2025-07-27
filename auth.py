@@ -55,27 +55,25 @@ def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) 
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
-def create_token_pair(username: str, db: Session) -> Token:
+def create_token_pair(user: User, db: Session) -> Token:
     """创建access token和refresh token对"""
     # 创建access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": username}, expires_delta=access_token_expires
+        data={"sub": user.username}, expires_delta=access_token_expires
     )
     
     # 创建refresh token
     refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     refresh_token = create_refresh_token(
-        data={"sub": username}, expires_delta=refresh_token_expires
+        data={"sub": user.username}, expires_delta=refresh_token_expires
     )
     
     # 更新用户的refresh token和过期时间
-    user = db.query(User).filter(User.username == username).first()
-    if user:
-        user.refresh_token = refresh_token
-        user.refresh_token_expires_at = datetime.utcnow() + refresh_token_expires
-        user.last_active_at = datetime.utcnow()
-        db.commit()
+    user.refresh_token = refresh_token
+    user.refresh_token_expires_at = datetime.utcnow() + refresh_token_expires
+    user.last_active_at = datetime.utcnow()
+    db.commit()
     
     return Token(
         access_token=access_token,
