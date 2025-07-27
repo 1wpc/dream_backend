@@ -9,14 +9,15 @@ from schemas import (
     EmailVerificationRequest, EmailVerificationResponse, EmailCodeVerifyRequest,
     UserCreateWithVerification, EmailLoginRequest, UserRegisterResponse,
     SMSVerificationRequest, SMSVerificationResponse, SMSCodeVerifyRequest,
-    SMSLoginRequest, UserCreateWithSMSVerification
+    SMSLoginRequest, UserCreateWithSMSVerification, RefreshTokenRequest, AccessTokenResponse
 )
 from auth import (
     authenticate_user, 
-    create_access_token, 
+    create_token_pair, 
     get_current_active_user,
     get_current_user,
-    verify_password
+    verify_password,
+    refresh_access_token
 )
 from config import settings
 import crud
@@ -88,16 +89,15 @@ async def register_with_verification(user: UserCreateWithVerification, db: Sessi
         # 创建用户
         db_user = crud.create_user(db=db, user=user_create)
         
-        # 生成访问令牌
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": db_user.username}, expires_delta=access_token_expires
-        )
+        # 使用双token机制
+        token_response = create_token_pair(db_user, db)
         
         return UserRegisterResponse(
             user=User.model_validate(db_user),
-            access_token=access_token,
+            access_token=token_response.access_token,
+            refresh_token=token_response.refresh_token,
             token_type="bearer",
+            expires_in=token_response.expires_in,
             message="用户注册成功，邮箱验证通过，已自动登录"
         )
     except ValueError as e:
@@ -138,15 +138,10 @@ async def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
             detail="用户账号已被禁用"
         )
     
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
+    # 使用双token机制
+    token_response = create_token_pair(user, db)
     
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    return token_response
 
 @router.post("/login-with-email-verification", response_model=Token)
 async def login_with_email_verification(login_request: EmailLoginRequest, db: Session = Depends(get_db)):
@@ -175,16 +170,10 @@ async def login_with_email_verification(login_request: EmailLoginRequest, db: Se
                 detail="用户账号已被禁用"
             )
         
-        # 4. 生成访问令牌
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user.username}, expires_delta=access_token_expires
-        )
+        # 4. 使用双token机制
+        token_response = create_token_pair(user, db)
         
-        return {
-            "access_token": access_token,
-            "token_type": "bearer"
-        }
+        return token_response
         
     except HTTPException:
         raise
@@ -192,6 +181,20 @@ async def login_with_email_verification(login_request: EmailLoginRequest, db: Se
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="登录失败，请稍后重试"
+        )
+
+@router.post("/refresh-token", response_model=AccessTokenResponse)
+async def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """刷新访问令牌（滑动窗口机制）"""
+    try:
+        token_response = refresh_access_token(request.refresh_token, db)
+        return token_response
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="刷新令牌失败，请重新登录"
         )
 
 @router.get("/me", response_model=User)
@@ -384,16 +387,15 @@ async def register_with_sms_verification(user: UserCreateWithSMSVerification, db
         # 创建用户
         db_user = crud.create_user(db=db, user=user_create)
         
-        # 生成访问令牌
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": db_user.username}, expires_delta=access_token_expires
-        )
+        # 使用双token机制
+        token_response = create_token_pair(db_user, db)
         
         return UserRegisterResponse(
             user=User.model_validate(db_user),
-            access_token=access_token,
+            access_token=token_response.access_token,
+            refresh_token=token_response.refresh_token,
             token_type="bearer",
+            expires_in=token_response.expires_in,
             message="用户注册成功，短信验证通过，已自动登录"
         )
     except ValueError as e:
@@ -436,16 +438,10 @@ async def login_with_sms_verification(login_request: SMSLoginRequest, db: Sessio
                 detail="用户账号已被禁用"
             )
         
-        # 4. 生成访问令牌
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user.username}, expires_delta=access_token_expires
-        )
+        # 4. 使用双token机制
+        token_response = create_token_pair(user, db)
         
-        return {
-            "access_token": access_token,
-            "token_type": "bearer"
-        }
+        return token_response
         
     except HTTPException:
         raise

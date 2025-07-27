@@ -45,6 +45,11 @@ class User(Base):
     total_points_earned = Column(Numeric(10, 2), default=0, nullable=False, comment="累计获得积分")
     total_points_spent = Column(Numeric(10, 2), default=0, nullable=False, comment="累计消费积分")
     
+    # 认证相关字段
+    refresh_token = Column(Text, nullable=True, comment="刷新令牌")
+    refresh_token_expires_at = Column(DateTime(timezone=True), nullable=True, comment="刷新令牌过期时间")
+    last_active_at = Column(DateTime(timezone=True), server_default=func.now(), comment="最后活跃时间")
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
     

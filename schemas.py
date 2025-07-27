@@ -83,10 +83,21 @@ class EmailLoginRequest(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
+    expires_in: int  # access token过期时间（秒）
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+    token_type: Optional[str] = "access"  # access 或 refresh
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+class AccessTokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    expires_in: int
 
 class Message(BaseModel):
     message: str
@@ -99,7 +110,9 @@ class UserRegisterResponse(BaseModel):
     """用户注册成功响应（包含token）"""
     user: User
     access_token: str
+    refresh_token: str
     token_type: str
+    expires_in: int
     message: str
 
 # 邮箱验证相关Schema

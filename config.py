@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "your-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30  # refresh token有效期（天）
+    REFRESH_TOKEN_SLIDING_WINDOW_DAYS: int = 7  # 滑动窗口期（天）
     
     # API配置
     API_VERSION: str = "v1"
