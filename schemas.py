@@ -285,7 +285,17 @@ class UserDeleteRequest(BaseModel):
         if not v.strip().isdigit():
             raise ValueError('验证码必须为数字')
         return v.strip()
-    
+
+class UserCreateWithSMSVerification(BaseModel):
+    """短信验证码注册用户"""
+    username: str
+    email: Optional[EmailStr] = None  # 邮箱变为可选
+    password: str
+    verification_code: str
+    full_name: Optional[str] = None
+    phone: str  # 手机号必填
+    avatar: Optional[str] = None
+
     @field_validator('password')
     @classmethod
     def validate_password(cls, v):
