@@ -178,13 +178,17 @@ def refresh_access_token(refresh_token: str, db: Session) -> AccessTokenResponse
     )
 
 def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
-    """验证用户身份（支持用户名或邮箱登录）"""
+    """验证用户身份（支持用户名、邮箱或手机号登录）"""
     # 先尝试用户名登录
     user = db.query(User).filter(User.username == username).first()
     
     # 如果用户名不存在且输入包含@符号，尝试邮箱登录
     if not user and "@" in username:
         user = db.query(User).filter(User.email == username).first()
+    
+    # 如果邮箱登录也失败，尝试手机号登录（检查是否为11位数字）
+    if not user and username.isdigit() and len(username) == 11:
+        user = db.query(User).filter(User.phone == username).first()
     
     if not user:
         return None

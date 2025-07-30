@@ -262,6 +262,29 @@ class UserCreateWithSMSVerification(BaseModel):
     full_name: Optional[str] = None
     phone: str  # 手机号必填
     avatar: Optional[str] = None
+
+class UserDeleteRequest(BaseModel):
+    """用户自删除请求"""
+    verification_type: str  # "email" 或 "sms"
+    verification_code: str
+    
+    @field_validator('verification_type')
+    @classmethod
+    def validate_verification_type(cls, v):
+        if v not in ["email", "sms"]:
+            raise ValueError('验证类型必须是email或sms')
+        return v
+    
+    @field_validator('verification_code')
+    @classmethod
+    def validate_verification_code(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('验证码不能为空')
+        if len(v.strip()) != 6:
+            raise ValueError('验证码必须为6位数字')
+        if not v.strip().isdigit():
+            raise ValueError('验证码必须为数字')
+        return v.strip()
     
     @field_validator('password')
     @classmethod

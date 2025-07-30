@@ -9,7 +9,8 @@ from schemas import (
     EmailVerificationRequest, EmailVerificationResponse, EmailCodeVerifyRequest,
     UserCreateWithVerification, EmailLoginRequest, UserRegisterResponse,
     SMSVerificationRequest, SMSVerificationResponse, SMSCodeVerifyRequest,
-    SMSLoginRequest, UserCreateWithSMSVerification, RefreshTokenRequest, AccessTokenResponse
+    SMSLoginRequest, UserCreateWithSMSVerification, RefreshTokenRequest, AccessTokenResponse,
+    UserDeleteRequest
 )
 from auth import (
     authenticate_user, 
@@ -181,6 +182,71 @@ async def login_with_email_verification(login_request: EmailLoginRequest, db: Se
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="登录失败，请稍后重试"
+        )
+
+@router.delete("/me", response_model=Message)
+async def delete_current_user(
+    delete_request: UserDeleteRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """用户自删除账号（需要验证码验证）"""
+    try:
+        # 根据验证类型进行验证码校验
+        if delete_request.verification_type == "email":
+            if not current_user.email:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="当前用户未绑定邮箱，无法使用邮箱验证码删除账号"
+                )
+            
+            # 验证邮箱验证码
+            verification_result = email_service.verify_code(
+                current_user.email, 
+                delete_request.verification_code, 
+                "delete_account"
+            )
+            if not verification_result["success"]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=verification_result["message"]
+                )
+        
+        elif delete_request.verification_type == "sms":
+            if not current_user.phone:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="当前用户未绑定手机号，无法使用短信验证码删除账号"
+                )
+            
+            # 验证短信验证码
+            verification_result = sms_service.verify_code(
+                current_user.phone, 
+                delete_request.verification_code, 
+                "delete_account"
+            )
+            if not verification_result["success"]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=verification_result["message"]
+                )
+        
+        # 验证码验证通过，执行账号删除
+        success = crud.delete_user(db=db, user_id=current_user.id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="账号删除失败，请稍后重试"
+            )
+        
+        return Message(message="账号删除成功")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="账号删除失败，请稍后重试"
         )
 
 @router.post("/refresh-token", response_model=AccessTokenResponse)
