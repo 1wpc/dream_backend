@@ -437,13 +437,10 @@ async def register_with_sms_verification(user: UserCreateWithSMSVerification, db
                 detail="该手机号已注册，请直接登录"
             )
         
-        # 如果邮箱为空，使用默认邮箱
-        email = user.email if user.email else "default@default.com"
-        
         # 创建用户对象（不包含验证码字段）
         user_create = UserCreate(
             username=user.username,
-            email=email,
+            email=user.email,  # 直接使用用户提供的邮箱，可能为None
             password=user.password,
             full_name=user.full_name,
             phone=user.phone,

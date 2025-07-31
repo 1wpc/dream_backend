@@ -32,7 +32,7 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     username = Column(String(50), unique=True, index=True, nullable=False, comment="用户名")
-    email = Column(String(100), unique=True, index=True, nullable=False, comment="邮箱")
+    email = Column(String(100), unique=True, index=True, nullable=True, comment="邮箱")
     hashed_password = Column(String(255), nullable=False, comment="加密后的密码")
     full_name = Column(String(255), nullable=True, comment="真实姓名")
     phone = Column(String(255), nullable=True, comment="手机号")

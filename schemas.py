@@ -18,7 +18,7 @@ class PointTransactionType(str, Enum):
 
 class UserBase(BaseModel):
     username: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     phone: Optional[str] = None
     avatar: Optional[str] = None
