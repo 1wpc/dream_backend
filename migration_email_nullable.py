@@ -78,19 +78,19 @@ def migrate_email_nullable():
                     print(f"[INFO] 删除约束: {constraint_name}")
                     connection.execute(text(f"ALTER TABLE users DROP INDEX {constraint_name}"))
                 
-                # 4. 将默认邮箱设置为NULL
+                # 4. 修改字段为可空
+                print("[INFO] 修改email字段为可空...")
+                connection.execute(text("""
+                    ALTER TABLE users MODIFY COLUMN email VARCHAR(100) NULL COMMENT '邮箱'
+                """))
+                
+                # 5. 将默认邮箱设置为NULL
                 if default_email_count > 0:
                     print("[INFO] 将默认邮箱用户的email字段设置为NULL...")
                     connection.execute(text("""
                         UPDATE users SET email = NULL WHERE email = 'default@default.com'
                     """))
                     print(f"[INFO] 已更新 {default_email_count} 个用户的邮箱为NULL")
-                
-                # 5. 修改字段为可空
-                print("[INFO] 修改email字段为可空...")
-                connection.execute(text("""
-                    ALTER TABLE users MODIFY COLUMN email VARCHAR(100) NULL COMMENT '邮箱'
-                """))
                 
                 # 6. 重新创建唯一索引（允许NULL值）
                 print("[INFO] 重新创建email字段的唯一索引...")
