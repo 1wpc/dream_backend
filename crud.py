@@ -30,8 +30,8 @@ def create_user(db: Session, user: UserCreate) -> User:
     if get_user_by_username(db, user.username):
         raise ValueError("用户名已存在")
     
-    # 检查邮箱是否已存在
-    if get_user_by_email(db, user.email):
+    # 检查邮箱是否已存在（仅当邮箱不为空时检查）
+    if user.email and get_user_by_email(db, user.email):
         raise ValueError("邮箱已存在")
     
     # 创建用户对象
