@@ -1,2 +1,41 @@
 *.env
 .env
+
+# SSL证书文件
+certs/
+*.pem
+*.key
+*.crt
+*.csr
+
+# Python缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 虚拟环境
+venv/
+env/
+.venv/
+
+# IDE配置
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 日志文件
+*.log
+logs/
+
+# 数据库文件
+*.db
+*.sqlite3
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
