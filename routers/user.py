@@ -10,7 +10,7 @@ from schemas import (
     UserCreateWithVerification, EmailLoginRequest, UserRegisterResponse,
     SMSVerificationRequest, SMSVerificationResponse, SMSCodeVerifyRequest,
     SMSLoginRequest, UserCreateWithSMSVerification, RefreshTokenRequest, AccessTokenResponse,
-    UserDeleteRequest
+    UserDeleteRequest, UserAuthResponse
 )
 from auth import (
     authenticate_user, 
@@ -404,18 +404,63 @@ async def send_sms_verification_code(request: SMSVerificationRequest):
     
     return SMSVerificationResponse(**result)
 
-@router.post("/verify-sms-code", response_model=SMSVerificationResponse)
-async def verify_sms_code(request: SMSCodeVerifyRequest):
+@router.post("/verify-sms-code", response_model=UserAuthResponse)
+async def verify_sms_code(request: SMSCodeVerifyRequest, db: Session = Depends(get_db)):
     """验证短信验证码"""
     result = sms_service.verify_code(request.phone, request.code, request.action)
-    
     if not result["success"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=result["message"]
         )
-    
-    return SMSVerificationResponse(**result)
+    user = crud.get_user_by_phone(db, request.phone)
+    if user:
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="用户账号已被禁用"
+            )
+        token_response = create_token_pair(user, db)
+        return UserAuthResponse(
+            user=User.model_validate(user),
+            access_token=token_response.access_token,
+            refresh_token=token_response.refresh_token,
+            token_type=token_response.token_type,
+            expires_in=token_response.expires_in,
+            is_new_user=False,
+            message="登录成功"
+        )
+    username = request.phone
+    if crud.get_user_by_username(db, username):
+        import secrets
+        username = f"{request.phone}_{secrets.token_hex(2)}"
+    import secrets
+    random_password = secrets.token_urlsafe(12)
+    user_create = UserCreate(
+        username=username,
+        email=None,
+        password=random_password,
+        full_name=None,
+        phone=request.phone,
+        avatar=None
+    )
+    try:
+        db_user = crud.create_user(db=db, user=user_create)
+    except ValueError:
+        import secrets
+        fallback_username = f"{request.phone}_{secrets.token_hex(3)}"
+        user_create.username = fallback_username
+        db_user = crud.create_user(db=db, user=user_create)
+    token_response = create_token_pair(db_user, db)
+    return UserAuthResponse(
+        user=User.model_validate(db_user),
+        access_token=token_response.access_token,
+        refresh_token=token_response.refresh_token,
+        token_type=token_response.token_type,
+        expires_in=token_response.expires_in,
+        is_new_user=True,
+        message="注册成功，已自动登录"
+    )
 
 @router.post("/register-with-sms-verification", response_model=UserRegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register_with_sms_verification(user: UserCreateWithSMSVerification, db: Session = Depends(get_db)):

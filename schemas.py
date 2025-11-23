@@ -115,6 +115,15 @@ class UserRegisterResponse(BaseModel):
     expires_in: int
     message: str
 
+class UserAuthResponse(BaseModel):
+    user: User
+    access_token: str
+    refresh_token: str
+    token_type: str
+    expires_in: int
+    is_new_user: bool
+    message: str
+
 # 邮箱验证相关Schema
 class EmailVerificationRequest(BaseModel):
     """发送验证码请求"""
